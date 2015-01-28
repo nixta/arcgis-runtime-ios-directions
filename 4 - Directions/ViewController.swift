@@ -9,11 +9,12 @@
 import UIKit
 import ArcGIS
 
-class ViewController: UIViewController, AGSWebMapDelegate {
+class ViewController: UIViewController, AGSWebMapDelegate, AGSMapViewTouchDelegate {
 
     @IBOutlet weak var mapView: AGSMapView!
     
     let webMap = AGSWebMap(itemId: "34ef224e34fa4a9db6adc58716f5d588", credential: nil)
+    var routeManager: RouteManager!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -21,6 +22,22 @@ class ViewController: UIViewController, AGSWebMapDelegate {
         
         self.webMap.openIntoMapView(self.mapView)
         self.webMap.delegate = self
+        
+        self.mapView.touchDelegate = self
+    }
+    
+    func mapView(mapView: AGSMapView!, didClickAtPoint screen: CGPoint, mapPoint mappoint: AGSPoint!, features: [NSObject : AnyObject]!) {
+        var tappedFeature:AGSFeature? = nil
+        for (_, layerFeatures) in features {
+            if let feature = layerFeatures[0] as? AGSFeature {
+                tappedFeature = feature
+            }
+        }
+        
+        if let destination = tappedFeature?.geometry? as? AGSPoint {
+            let myPosition = self.mapView.locationDisplay.location.point
+            self.routeManager.solveRoute(myPosition, destination: destination)
+        }
     }
     
     func webMap(webMap: AGSWebMap!, didFailToLoadWithError error: NSError!) {
@@ -29,6 +46,17 @@ class ViewController: UIViewController, AGSWebMapDelegate {
     
     func webMap(webMap: AGSWebMap!, didFailToLoadLayer layerInfo: AGSWebMapLayerInfo!, baseLayer: Bool, federated: Bool, withError error: NSError!) {
         UIAlertView(title: "Layer Load Error", message: error.localizedDescription, delegate: nil, cancelButtonTitle: "OK").show()
+    }
+    
+    func webMapDidLoad(webMap: AGSWebMap!) {
+        println("Web Map Loaded")
+    }
+    
+    func didOpenWebMap(webMap: AGSWebMap!, intoMapView mapView: AGSMapView!) {
+        self.routeManager = RouteManager(mapView: mapView)
+        
+        self.mapView.locationDisplay.startDataSource()
+        self.mapView.locationDisplay.autoPanMode = AGSLocationDisplayAutoPanMode.Off
     }
     
     override func prefersStatusBarHidden() -> Bool {
